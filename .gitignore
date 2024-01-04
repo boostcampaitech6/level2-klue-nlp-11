@@ -1,6 +1,7 @@
 # 제공 데이터셋 및 개별 데이터셋은 업데이트하지 않음
 dataset/*
 code/__pycache__/
+code/wandb/
 
 # 이외 구조만 유지해야 하는 폴더 지정하기(내부 모델 및 예측 데이터는 업데이트하지 않음)
 ## code/results - train.py를 통해 설정된 step 마다 model이 저장되는 폴더
