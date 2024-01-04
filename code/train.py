@@ -80,7 +80,7 @@ def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   #MODEL_NAME = "klue/bert-base"
-  MODEL_NAME = "klue/RoBERTa"
+  MODEL_NAME = "klue/roberta-small"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
