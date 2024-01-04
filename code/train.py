@@ -10,7 +10,7 @@ from load_data import *
 import numpy as np
 import random
 
-def set_seed(seed:int = 42):
+def set_seed(seed:int = 74):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  # if use multi-GPU
@@ -76,7 +76,7 @@ def label_to_num(label):
   return num_label
 
 def train():
-  set_seed(42)
+  set_seed(74)
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   MODEL_NAME = "klue/bert-base"
