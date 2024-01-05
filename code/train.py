@@ -10,7 +10,10 @@ from load_data import *
 import numpy as np
 import random
 
-def set_seed(seed:int = 42):
+import yaml
+config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
+
+def set_seed(seed:int = config['seed']):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  # if use multi-GPU
@@ -78,14 +81,12 @@ def label_to_num(label):
 def train():
   set_seed(42)
   # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  #MODEL_NAME = "klue/bert-base"
-  MODEL_NAME = "klue/roberta-small"
+  MODEL_NAME = config['train']['MODEL_NAME']
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
-  # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
+  train_dataset = load_data(config['train']['train_dataset_filepath'])
+  # dev_dataset = load_data(config['train']['dev_dataset_filepath']) # validation용 데이터는 따로 만드셔야 합니다.
 
   train_label = label_to_num(train_dataset['label'].values)
   # dev_label = label_to_num(dev_dataset['label'].values)
@@ -113,23 +114,23 @@ def train():
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-    output_dir='./results',          # output directory
-    save_total_limit=5,              # number of total save model.
-    save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=16,  # batch size per device during training
-    per_device_eval_batch_size=16,   # batch size for evaluation
-    warmup_steps=500,                # number of warmup steps for learning rate scheduler
-    weight_decay=0.01,               # strength of weight decay
-    logging_dir='./logs',            # directory for storing logs
-    logging_steps=100,              # log saving step.
-    evaluation_strategy='steps', # evaluation strategy to adopt during training
-                                # `no`: No evaluation during training.
-                                # `steps`: Evaluate every `eval_steps`.
-                                # `epoch`: Evaluate every end of epoch.
-    eval_steps = 500,            # evaluation step.
-    load_best_model_at_end = True 
+    output_dir=config['train']['training_args']['output_dir'],                # output directory
+    save_total_limit=config['train']['training_args']['save_total_limit'],    # number of total save model.
+    save_steps=config['train']['training_args']['save_steps'],                # model saving step.
+    num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs
+    learning_rate=config['train']['training_args']['num_train_epochs'],       # learning_rate
+    per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
+    per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
+    warmup_steps=config['train']['training_args']['warmup_steps'],                # number of warmup steps for learning rate scheduler
+    weight_decay=config['train']['training_args']['weight_decay'],                # strength of weight decay
+    logging_dir=config['train']['training_args']['logging_dir'],                  # directory for storing logs
+    logging_steps=config['train']['training_args']['logging_steps'],              # log saving step.
+    evaluation_strategy=config['train']['training_args']['evaluation_strategy'],  # evaluation strategy to adopt during training
+                                                                                  # `no`: No evaluation during training.
+                                                                                  # `steps`: Evaluate every `eval_steps`.
+                                                                                  # `epoch`: Evaluate every end of epoch.
+    eval_steps = config['train']['training_args']['eval_steps'],                  # evaluation step.
+    load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'] 
   )
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
@@ -141,7 +142,7 @@ def train():
 
   # train model
   trainer.train()
-  model.save_pretrained('./best_model')
+  model.save_pretrained(config['best_model_dir'])
 def main():
   train()
 

@@ -12,6 +12,9 @@ from tqdm import tqdm
 
 from train import set_seed
 
+import yaml
+config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
+
 def inference(model, tokenized_sent, device):
   """
     test dataset을 DataLoader로 만들어 준 후,
@@ -62,13 +65,13 @@ def load_test_dataset(dataset_dir, tokenizer):
   return test_dataset['id'], tokenized_test, test_label
 
 def main(args):
-  set_seed(42)
+  set_seed(config['seed'])
   """
     주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
   """
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
-  Tokenizer_NAME = "klue/bert-base"
+  Tokenizer_NAME = config['train']['MODEL_NAME']  # 주어진 dataset csv 파일과 같은 형태일 경우 train.py 파일에서 사용한 모델과 같은 모델 사용
   tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
 
   ## load my model
@@ -78,7 +81,7 @@ def main(args):
   model.to(device)
 
   ## load test datset
-  test_dataset_dir = "../dataset/test/test_data.csv"
+  test_dataset_dir = config['test']['test_dataset_filepath']
   test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
   Re_test_dataset = RE_Dataset(test_dataset ,test_label)
 
@@ -91,14 +94,14 @@ def main(args):
   # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
   output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
-  output.to_csv('./prediction/submission.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+  output.to_csv(config['test']['predict_submission_filepath'], index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   
   # model dir
-  parser.add_argument('--model_dir', type=str, default="./best_model")
+  parser.add_argument('--model_dir', type=str, default=config['best_model_dir'])
   args = parser.parse_args()
   print(args)
   main(args)
