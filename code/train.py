@@ -12,9 +12,11 @@ import random
 
 import yaml
 config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
+sweep = yaml.load(open('./sweep.yaml', 'r'), Loader = yaml.Loader)
 
 import wandb
 wandb.init(project=config['project_name'], entity='xi-vil')
+run = wandb.init(config=sweep)
 
 def set_seed(seed:int = config['seed']):
     torch.manual_seed(seed)
@@ -122,12 +124,6 @@ def train():
     report_to=config['train']['training_args']['report_to'],
     save_total_limit=config['train']['training_args']['save_total_limit'],    # number of total save model.
     save_steps=config['train']['training_args']['save_steps'],                # model saving step.
-    num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs
-    learning_rate=config['train']['training_args']['num_train_epochs'],       # learning_rate
-    per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
-    per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
-    warmup_steps=config['train']['training_args']['warmup_steps'],                # number of warmup steps for learning rate scheduler
-    weight_decay=config['train']['training_args']['weight_decay'],                # strength of weight decay
     logging_dir=config['train']['training_args']['logging_dir'],                  # directory for storing logs
     logging_steps=config['train']['training_args']['logging_steps'],              # log saving step.
     evaluation_strategy=config['train']['training_args']['evaluation_strategy'],  # evaluation strategy to adopt during training
@@ -135,7 +131,15 @@ def train():
                                                                                   # `steps`: Evaluate every `eval_steps`.
                                                                                   # `epoch`: Evaluate every end of epoch.
     eval_steps = config['train']['training_args']['eval_steps'],                  # evaluation step.
-    load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'] 
+    load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'],
+
+    learning_rate=config['train']['training_args']['num_train_epochs'],       # learning_rate
+    num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs
+    per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
+    per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
+    warmup_steps=config['train']['training_args']['warmup_steps'],                # number of warmup steps for learning rate scheduler
+    weight_decay=config['train']['training_args']['weight_decay']                 # strength of weight decay
+
   )
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
