@@ -14,7 +14,7 @@ import yaml
 config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
 
 import wandb
-wandb.init(project='KLUE')
+wandb.init(project=config['project_name'], entity='xi-vil')
 
 def set_seed(seed:int = config['seed']):
     torch.manual_seed(seed)

@@ -1,6 +1,40 @@
+project_name: "huggingface"
+
 seed: 42
 best_model_dir: './best_model'
 MODEL_NAME: "klue/bert-base"
+
+sweep_config:
+  program: train.py
+  method: bayes
+  metric:
+    goal: minimize
+    name: eval/loss
+  parameters:
+    learning_rate:
+      distribution: uniform
+      max: 0.001
+      min: 1e-05
+    model:
+      values:
+        - klue/bert-base
+        - klue/roberta-large
+        - klue/roberta-small
+    per_device_eval_batch_size:
+      values:
+        - 8
+        - 16
+        - 32
+    per_device_train_batch_size:
+      values:
+        - 8
+        - 16
+        - 32
+    weight_decay:
+      distribution: uniform
+      max: 0.05
+      min: 0.001
+
 
 train:
   train_dataset_filepath: "../dataset/train/train.csv"
@@ -30,6 +64,6 @@ train:
     load_best_model_at_end: True      # 훈련 이후 best model 평가 여부
 
 test:
-  Tokenizer_NAME: "klue/bert-base"
+  Tokenizer_NAME: "klue/bert-base"   # 기본적으로 배포된 inference.py에서는 해당 하이퍼파라미터 대신 MODEL_NAME을 사용하고 있음.
   test_dataset_filepath: "../dataset/test/test_data.csv"
   predict_submission_filepath: './prediction/submission.csv'
