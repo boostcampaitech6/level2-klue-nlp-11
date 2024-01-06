@@ -13,6 +13,9 @@ import random
 import yaml
 config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
 
+import wandb
+wandb.init(project='KLUE')
+
 def set_seed(seed:int = config['seed']):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -81,7 +84,7 @@ def label_to_num(label):
 def train():
   set_seed(42)
   # load model and tokenizer
-  MODEL_NAME = config['train']['MODEL_NAME']
+  MODEL_NAME = config['MODEL_NAME']
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
@@ -115,6 +118,8 @@ def train():
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
     output_dir=config['train']['training_args']['output_dir'],                # output directory
+    run_name=config['train']['training_args']['run_name'],
+    report_to=config['train']['training_args']['report_to'],
     save_total_limit=config['train']['training_args']['save_total_limit'],    # number of total save model.
     save_steps=config['train']['training_args']['save_steps'],                # model saving step.
     num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs

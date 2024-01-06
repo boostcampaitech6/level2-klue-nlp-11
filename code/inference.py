@@ -71,7 +71,7 @@ def main(args):
   """
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
-  Tokenizer_NAME = config['train']['MODEL_NAME']  # 주어진 dataset csv 파일과 같은 형태일 경우 train.py 파일에서 사용한 모델과 같은 모델 사용
+  Tokenizer_NAME = config['MODEL_NAME']
   tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
 
   ## load my model

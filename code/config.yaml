@@ -1,29 +1,33 @@
 seed: 42
 best_model_dir: './best_model'
+MODEL_NAME: "klue/bert-base"
 
 train:
-  MODEL_NAME: "klue/bert-base"
   train_dataset_filepath: "../dataset/train/train.csv"
   dev_dataset_filepath: "../dataset/train/dev.csv"
 
+  # 사용한 option 외에도 다양한 option들이 있습니다.
+  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args:
     output_dir: './results'           # output directory
-    save_total_limit: 5               # number of total save model.
-    save_steps: 500                   # model saving step.
-    num_train_epochs: 20              # total number of training epochs
-    learning_rate: 5e-5               # learning_rate
-    per_device_train_batch_size: 16   # batch size per device during training
-    per_device_eval_batch_size: 16    # batch size for evaluation
-    warmup_steps: 500                 # number of warmup steps for learning rate scheduler
-    weight_decay: 0.01                # strength of weight decay
-    logging_dir: './logs'             # directory for storing logs
-    logging_steps: 100                # log saving step.
-    evaluation_strategy: 'steps'      # evaluation strategy to adopt during training
-                                      # `no`: No evaluation during training.
-                                      # `steps`: Evaluate every `eval_steps`.
-                                      # `epoch`: Evaluate every end of epoch.
-    eval_steps: 500                   # evaluation step.
-    load_best_model_at_end: True
+    run_name: 'bert_base_e20_lr5e-5'             # 평가 시 wandb에 기록될 명칭
+    report_to: 'wandb'                # 평가 시 메트릭 변화 데이터를 보낼 곳
+    save_total_limit: 5               # number of total save model(code/results/ 폴더에 들어갈 최대 폴더 개수)
+    save_steps: 500                   # model saving step(일정 step에 들어설 때마다 모델 저장)
+    num_train_epochs: 20              # total number of training epochs(훈련 에폭 횟수)
+    learning_rate: 5e-5               # learning_rate(학습률)
+    per_device_train_batch_size: 16   # batch size per device during training(학습 시 디바이스(=GPU)별 배치 크기)
+    per_device_eval_batch_size: 16    # batch size for evaluation(parameter 평가 시 디바이스(=GPU)별 배치 크기)
+    warmup_steps: 500                 # number of warmup steps for learning rate scheduler(지정 step까지 학습률을 0에서 천천히 증가)
+    weight_decay: 0.01                # strength of weight decay(과적합을 방지하는 목적으로 가중치(weight)를 감쇠시키는 정도)
+    logging_dir: './logs'             # directory for storing logs(로그 파일 저장할 디렉토리)
+    logging_steps: 100                # log saving step.(일정 step에 들어설 때마다 로그 파일 저장)
+    evaluation_strategy: 'steps'      # evaluation strategy to adopt during training(훈련하는 동안 parameter 평가 빈도)
+                                      # `no`: No evaluation during training.(훈련시키는 동안 평가 하지 않음)
+                                      # `steps`: Evaluate every `eval_steps`(평가 step마다 parameter 평가)
+                                      # `epoch`: Evaluate every end of epoch(epoch 종료할 때마다 parameter 평가)
+    eval_steps: 500                   # evaluation step(일정 step마다 parameter 평가)
+    load_best_model_at_end: True      # 훈련 이후 best model 평가 여부
 
 test:
   Tokenizer_NAME: "klue/bert-base"
