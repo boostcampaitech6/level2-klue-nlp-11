@@ -1,8 +1,8 @@
-project_name: "huggingface"
+project_name: "KLUE-heonhyo"
 
 seed: 42
 best_model_dir: './best_model'
-MODEL_NAME: "klue/bert-base"
+MODEL_NAME: "klue/roberta-large"
 
 train:
   train_dataset_filepath: "../dataset/train/train.csv"

@@ -1,5 +1,6 @@
 program: train.py
 method: bayes
+name: roberta-large
 metric:
   goal: maximize
   name: eval/micro f1 score
@@ -11,8 +12,6 @@ parameters:
   num_train_epochs:
     values:
       - 10
-      - 15
-      - 20
   per_device_eval_batch_size:
     values:
       - 8
