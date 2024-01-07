@@ -1,20 +1,18 @@
 program: train.py
 method: bayes
 metric:
-  goal: minimize
-  name: eval/loss
+  goal: maximize
+  name: eval/micro f1 score
 parameters:
   learning_rate:
     distribution: uniform
-    max: 1e-03
+    max: 1e-04
     min: 1e-05
   num_train_epochs:
     values:
       - 10
+      - 15
       - 20
-      - 30
-      - 40
-      - 50
   per_device_eval_batch_size:
     values:
       - 8
@@ -32,4 +30,4 @@ parameters:
   weight_decay:
     distribution: uniform
     max: 0.05
-    min: 0.001
+    min: 0.01
