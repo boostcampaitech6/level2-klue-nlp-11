@@ -7,8 +7,8 @@ metric:
 parameters:
   learning_rate:
     distribution: uniform
-    max: 1e-04
-    min: 1e-05
+    max: 0.001
+    min: 0.00001
   num_train_epochs:
     values:
       - 10
