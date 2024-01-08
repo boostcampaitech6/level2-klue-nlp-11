@@ -26,7 +26,7 @@ def set_seed(seed:int = config['seed']):
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     random.seed(seed)
-
+ 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
     label_list = ['no_relation', 'org:top_members/employees', 'org:members',
