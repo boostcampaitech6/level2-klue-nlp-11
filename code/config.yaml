@@ -2,7 +2,7 @@ project_name: "KLUE-heonhyo"
 
 seed: 42
 best_model_dir: './best_model'
-MODEL_NAME: "klue/roberta-large"
+MODEL_NAME: "klue/roberta-base"
 
 train:
   train_dataset_filepath: "../dataset/train/train.csv"
@@ -12,7 +12,7 @@ train:
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args:
     output_dir: './results'           # output directory
-    run_name: 'bert_roberta-large_e20_lr5e-5'             # 평가 시 wandb에 기록될 명칭
+    run_name: 'bert_roberta-base_e20_lr5e-5'             # 평가 시 wandb에 기록될 명칭
     report_to: 'wandb'                # 평가 시 메트릭 변화 데이터를 보낼 곳
     save_total_limit: 5               # number of total save model(code/results/ 폴더에 들어갈 최대 폴더 개수)
     save_steps: 500                   # model saving step(일정 step에 들어설 때마다 모델 저장)
