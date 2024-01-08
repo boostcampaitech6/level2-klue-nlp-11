@@ -17,7 +17,7 @@ train:
     save_total_limit: 5               # number of total save model(code/results/ 폴더에 들어갈 최대 폴더 개수)
     save_steps: 500                   # model saving step(일정 step에 들어설 때마다 모델 저장)
     num_train_epochs: 20              # total number of training epochs(훈련 에폭 횟수)
-    learning_rate: 5e-5               # learning_rate(학습률)
+    learning_rate: 5.0e-5               # learning_rate(학습률)
     per_device_train_batch_size: 16   # batch size per device during training(학습 시 디바이스(=GPU)별 배치 크기)
     per_device_eval_batch_size: 16    # batch size for evaluation(parameter 평가 시 디바이스(=GPU)별 배치 크기)
     warmup_steps: 500                 # number of warmup steps for learning rate scheduler(지정 step까지 학습률을 0에서 천천히 증가)
