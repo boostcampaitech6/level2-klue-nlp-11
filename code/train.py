@@ -133,7 +133,7 @@ def train():
     eval_steps = config['train']['training_args']['eval_steps'],                  # evaluation step.
     load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'],
 
-    learning_rate=config['train']['training_args']['num_train_epochs'],       # learning_rate
+    learning_rate=config['train']['training_args']['learning_rate'],       # learning_rate
     num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs
     per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
     per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
