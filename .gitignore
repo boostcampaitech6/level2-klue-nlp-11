@@ -1,0 +1,28 @@
+# 제공 데이터셋 및 개별 데이터셋은 업데이트하지 않음
+dataset/*
+code/__pycache__/
+code/wandb/
+
+# 이외 구조만 유지해야 하는 폴더 지정하기(내부 모델 및 예측 데이터는 업데이트하지 않음)
+## code/results - train.py를 통해 설정된 step 마다 model이 저장되는 폴더
+code/results/*
+!code/results/.ipynb_checkpoints/
+code/results/.ipynb_checkpoints/*
+!code/results/.ipynb_checkpoints/.gitkeep
+
+## code/prediction - inference.py 를 통해 model이 예측한 정답 submission.csv 파일이 저장되는 폴더
+code/prediction/*
+!code/prediction/sample_submission.csv
+!code/prediction/.ipynb_checkpoints/
+code/prediction/.ipynb_checkpoints/*
+!code/prediction/.ipynb_checkpoints/sample_submission-checkpoint.csv
+
+## code/best_model - 학습중 evaluation이 best인 model이 저장되는 폴더
+code/best_model/*
+!code/best_model/.ipynb_checkpoints/
+code/best_model/.ipynb_checkpoints/*
+!code/best_model/.ipynb_checkpoints/.gitkeep
+
+## code/logs - 텐서보드 로그가 담기는 폴더
+code/logs/*
+!code/logs/.gitkeep
