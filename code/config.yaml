@@ -1,4 +1,4 @@
-project_name: "huggingface"
+project_name: "KLUE-Byungryool Jo"
 
 seed: 42
 best_model_dir: './best_model'
