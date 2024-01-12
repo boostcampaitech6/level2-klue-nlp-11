@@ -5,14 +5,14 @@ best_model_dir: './best_model'
 MODEL_NAME: "klue/roberta-large"
 
 train:
-  train_dataset_filepath: "../dataset/train/train.csv"
-  dev_dataset_filepath: "../dataset/train/dev.csv"
+  train_dataset_filepath: "../dataset/train/train_typed_entity_marker_punc.csv"
+  dev_dataset_filepath: "../dataset/train/dev_typed_entity_marker_punc.csv"
 
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args:
     output_dir: './results'           # output directory
-    run_name: 'bert_roberta-large_e20_lr5e-5'             # 평가 시 wandb에 기록될 명칭
+    run_name: 'roberta-large_e20_lr5e-5'             # 평가 시 wandb에 기록될 명칭
     report_to: 'wandb'                # 평가 시 메트릭 변화 데이터를 보낼 곳
     save_total_limit: 5               # number of total save model(code/results/ 폴더에 들어갈 최대 폴더 개수)
     save_steps: 500                   # model saving step(일정 step에 들어설 때마다 모델 저장)
@@ -33,5 +33,5 @@ train:
 
 test:
   Tokenizer_NAME: "klue/bert-base"   # 기본적으로 배포된 inference.py에서는 해당 하이퍼파라미터 대신 MODEL_NAME을 사용하고 있음.
-  test_dataset_filepath: "../dataset/test/test_data.csv"
-  predict_submission_filepath: './prediction/submission.csv'
+  test_dataset_filepath: "../dataset/test/test_typed_entity_marker_punc.csv"
+  predict_submission_filepath: './prediction/submission_typed_entity_marker_punc.csv'
