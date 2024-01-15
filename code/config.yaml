@@ -2,11 +2,11 @@ project_name: "KLUE-heonhyo"
 
 seed: 42
 best_model_dir: './best_model'
-MODEL_NAME: "klue/roberta-large"
+MODEL_NAME: "klue/roberta-large"  # 모델 바꿀 때 이거 수정하기
 
 train:
-  train_dataset_filepath: "../dataset/train/train_typed_entity_marker_punc.csv"
-  dev_dataset_filepath: "../dataset/train/dev_typed_entity_marker_punc.csv"
+  train_dataset_filepath: "../dataset/train/withDev/train_typed_entity_marker_punc_10portions_09.csv"  # 이거 수정하기
+  dev_dataset_filepath: "../dataset/train/withDev/dev_typed_entity_marker_punc_10portions_09.csv"  # 이거 수정하기
 
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
@@ -17,7 +17,7 @@ train:
     save_total_limit: 5               # number of total save model(code/results/ 폴더에 들어갈 최대 폴더 개수)
     save_steps: 500                   # model saving step(일정 step에 들어설 때마다 모델 저장)
     num_train_epochs: 20              # total number of training epochs(훈련 에폭 횟수)
-    learning_rate: 5.0e-5               # learning_rate(학습률)
+    learning_rate: 5.0e-5             # learning_rate(학습률)
     per_device_train_batch_size: 16   # batch size per device during training(학습 시 디바이스(=GPU)별 배치 크기)
     per_device_eval_batch_size: 16    # batch size for evaluation(parameter 평가 시 디바이스(=GPU)별 배치 크기)
     warmup_steps: 500                 # number of warmup steps for learning rate scheduler(지정 step까지 학습률을 0에서 천천히 증가)
@@ -34,4 +34,4 @@ train:
 test:
   Tokenizer_NAME: "klue/bert-base"   # 기본적으로 배포된 inference.py에서는 해당 하이퍼파라미터 대신 MODEL_NAME을 사용하고 있음.
   test_dataset_filepath: "../dataset/test/test_typed_entity_marker_punc.csv"
-  predict_submission_filepath: './prediction/submission_typed_entity_marker_punc.csv'
+  predict_submission_filepath: './prediction/submission_typed_entity_marker_punc_10portions_09.csv'  # 이거 수정하기

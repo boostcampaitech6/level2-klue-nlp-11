@@ -5,7 +5,7 @@ import torch
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, EarlyStoppingCallback
 from load_data import *
 import numpy as np
 import random
@@ -115,6 +115,11 @@ def train():
   print(model.config)
   model.parameters
   model.to(device)
+
+  early_stopping = EarlyStoppingCallback(
+			early_stopping_patience=10,  # 알맞게 조정
+      early_stopping_threshold=0.01,  # 알맞게 조정
+  )
   
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
@@ -127,9 +132,9 @@ def train():
     logging_dir=config['train']['training_args']['logging_dir'],                  # directory for storing logs
     logging_steps=config['train']['training_args']['logging_steps'],              # log saving step.
     evaluation_strategy=config['train']['training_args']['evaluation_strategy'],  # evaluation strategy to adopt during training
-                                                                                  # `no`: No evaluation during training.
+    save_strategy=config['train']['training_args']['evaluation_strategy'],        # `no`: No evaluation during training.
                                                                                   # `steps`: Evaluate every `eval_steps`.
-                                                                                  # `epoch`: Evaluate every end of epoch.
+                                                                                  # `epoch`: Evaluate every end of epoch.      
     eval_steps = config['train']['training_args']['eval_steps'],                  # evaluation step.
     load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'],
 
@@ -138,16 +143,15 @@ def train():
     per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
     per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
     warmup_steps=config['train']['training_args']['warmup_steps'],                # number of warmup steps for learning rate scheduler
-    weight_decay=config['train']['training_args']['weight_decay']                 # strength of weight decay
-
+    weight_decay=config['train']['training_args']['weight_decay'],                # strength of weight decay
   )
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset
-    dev_dataset=RE_dev_dataset,
-    eval_dataset=RE_train_dataset,             # evaluation dataset
-    compute_metrics=compute_metrics         # define metrics function
+    eval_dataset=RE_dev_dataset,             # evaluation dataset
+    compute_metrics=compute_metrics,         # define metrics function
+    callbacks=[early_stopping]
   )
 
   # train model
