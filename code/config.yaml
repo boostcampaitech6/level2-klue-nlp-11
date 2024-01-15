@@ -5,8 +5,9 @@ best_model_dir: './best_model'
 MODEL_NAME: "klue/bert-base"
 
 train:
-  train_dataset_filepath: "../dataset/train/train.csv"
+  train_dataset_filepath: "../dataset/train/train_typed_entity_marker.csv"
   dev_dataset_filepath: "../dataset/train/dev.csv"
+  dev_split_ratio: 0.1              # dev set 분할 비율
 
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
@@ -18,8 +19,8 @@ train:
     save_steps: 500                   # model saving step(일정 step에 들어설 때마다 모델 저장)
     num_train_epochs: 20              # total number of training epochs(훈련 에폭 횟수)
     learning_rate: 5.0e-5               # learning_rate(학습률)
-    per_device_train_batch_size: 16   # batch size per device during training(학습 시 디바이스(=GPU)별 배치 크기)
-    per_device_eval_batch_size: 16    # batch size for evaluation(parameter 평가 시 디바이스(=GPU)별 배치 크기)
+    per_device_train_batch_size: 32   # batch size per device during training(학습 시 디바이스(=GPU)별 배치 크기)
+    per_device_eval_batch_size: 32    # batch size for evaluation(parameter 평가 시 디바이스(=GPU)별 배치 크기)
     warmup_steps: 500                 # number of warmup steps for learning rate scheduler(지정 step까지 학습률을 0에서 천천히 증가)
     weight_decay: 0.01                # strength of weight decay(과적합을 방지하는 목적으로 가중치(weight)를 감쇠시키는 정도)
     logging_dir: './logs'             # directory for storing logs(로그 파일 저장할 디렉토리)
@@ -30,9 +31,9 @@ train:
                                       # `epoch`: Evaluate every end of epoch(epoch 종료할 때마다 parameter 평가)
     eval_steps: 500                   # evaluation step(일정 step마다 parameter 평가)
     load_best_model_at_end: True      # 훈련 이후 best model 평가 여부
-    dev_split_ratio: 0.1              # dev set 분할 비율
+    
 
 test:
   Tokenizer_NAME: "klue/bert-base"   # 기본적으로 배포된 inference.py에서는 해당 하이퍼파라미터 대신 MODEL_NAME을 사용하고 있음.
-  test_dataset_filepath: "../dataset/test/test_data.csv"
-  predict_submission_filepath: './prediction/submission.csv'
+  test_dataset_filepath: "../dataset/test/test_typed_entity_maker.csv"
+  predict_submission_filepath: './prediction/submission1.csv'

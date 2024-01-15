@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 from sklearn.model_selection import train_test_split
 from collections import defaultdict
 
-def train_val_split(dataset, ratio: float, random_state: int = 42):
+def train_dev_split(dataset, ratio: float, random_state: int = 42):
     if ratio == 0.0:
         ratio = 0.1
 

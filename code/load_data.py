@@ -3,6 +3,9 @@ import os
 import pandas as pd
 import torch
 import ast
+from tqdm.auto import tqdm
+from sklearn.model_selection import train_test_split
+from collections import defaultdict
 
 MARKERS = dict(
     subject_start_marker="<SUB>",
@@ -112,3 +115,33 @@ def tokenized_dataset(dataset, tokenizer):
       add_special_tokens=True,
       )
   return tokenized_sentences
+
+
+
+def train_dev_split(dataset, ratio: float, random_state: int = 42):
+    if ratio == 0.0:
+        ratio = 0.1
+
+    label_dict = defaultdict(int)
+
+    for label in dataset['label']:
+        label_dict[label] += 1
+
+    train_dataset = []
+    dev_dataset = []
+
+    for item in tqdm(label_dict.items(), desc='train_dev_split', total=len(label_dict)):
+        sub_dataset = dataset[dataset['label'] == item[0]]
+
+        train_data, dev_data = train_test_split(sub_dataset, test_size=ratio, random_state=random_state)
+
+        train_dataset.append(train_data)
+        dev_dataset.append(vdev_data)
+
+    train_dataset = pd.concat(train_dataset, ignore_index=True)
+    dev_dataset = pd.concat(dev_dataset, ignore_index=True)
+
+    train_dataset = train_dataset.sample(frac=1, random_state=random_state).reset_index(drop=True)
+    dev_dataset = dev_dataset.sample(frac=1, random_state=random_state).reset_index(drop=True)
+
+    return train_dataset, dev_dataset

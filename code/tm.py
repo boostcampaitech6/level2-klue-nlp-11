@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from load_data import *
+from traindevsplit import * # train_dev_split
 import numpy as np
 import random
 
@@ -90,7 +91,7 @@ def train():
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
-  dataset = load_data(config['train'][train_dataset_filepath])
+  dataset = load_data(config['train']['train_dataset_filepath'])
 
   train_dataset, dev_dataset = train_dev_split(dataset, config['train']['dev_split_ratio'])
 
