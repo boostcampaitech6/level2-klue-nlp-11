@@ -109,13 +109,11 @@ def train():
   model.parameters
   model.to(device)
   
-  # 사용한 option 외에도 다양한 option들이 있습니다.
-  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
     output_dir='./results',          # output directory
     save_total_limit=5,              # number of total save model.
     save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
+    num_train_epochs=30,              # total number of training epochs
     learning_rate=5e-5,               # learning_rate
     per_device_train_batch_size=16,  # batch size per device during training
     per_device_eval_batch_size=16,   # batch size for evaluation
@@ -123,13 +121,20 @@ def train():
     weight_decay=0.01,               # strength of weight decay
     logging_dir='./logs',            # directory for storing logs
     logging_steps=100,              # log saving step.
-    evaluation_strategy='steps', # evaluation strategy to adopt during training
+    evaluation_strategy='epoch', # evaluation strategy to adopt during training
                                 # `no`: No evaluation during training.
                                 # `steps`: Evaluate every `eval_steps`.
                                 # `epoch`: Evaluate every end of epoch.
-    eval_steps = 500,            # evaluation step.
+    eval_steps = 500,            # evaluation step. (원래 steps였음)
+    save_strategy='epoch',  # 이 줄 변경
     load_best_model_at_end = True 
   )
+
+  early_stopping = EarlyStoppingCallback(
+      early_stopping_patience=3,  # Patience 값 설정 (일정 에폭동안 검증 손실이 개선되지 않으면 중단)
+      early_stopping_threshold=0.01,  # 검증 손실의 개선이 얼마나 작아야 하는지 설정
+  )
+    
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
