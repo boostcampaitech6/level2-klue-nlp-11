@@ -136,7 +136,7 @@ def train_dev_split(dataset, ratio: float, random_state: int = 42):
         train_data, dev_data = train_test_split(sub_dataset, test_size=ratio, random_state=random_state)
 
         train_dataset.append(train_data)
-        dev_dataset.append(vdev_data)
+        dev_dataset.append(dev_data)
 
     train_dataset = pd.concat(train_dataset, ignore_index=True)
     dev_dataset = pd.concat(dev_dataset, ignore_index=True)
