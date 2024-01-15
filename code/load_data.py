@@ -2,6 +2,38 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
+import ast
+
+MARKERS = dict(
+    subject_start_marker="<SUB>",
+    subject_end_marker  ="</SUB>",
+    object_start_marker ="<OBJ>",
+    object_end_marker   ="</OBJ>",
+)
+TYPE_MARKERS = dict(
+    subject_start_per_marker="<S:PER>",
+    subject_start_org_marker="<S:ORG>",
+    subject_start_loc_marker="<S:LOC>",
+    subject_end_per_marker ="</S:PER>",
+    subject_end_org_marker ="</S:ORG>",
+    subject_end_loc_marker="</S:LOC>",
+    object_start_per_marker="<O:PER>",
+    object_start_org_marker="<O:ORG>",
+    object_start_loc_marker="<O:LOC>",
+    object_start_dat_marker="<O:DAT>",
+    object_start_poh_marker="<O:POH>",
+    object_start_noh_marker="<O:NOH>",
+    object_end_per_marker ="</O:PER>",
+    object_end_org_marker ="</O:ORG>",
+    object_end_loc_marker ="</O:LOC>",
+    object_end_dat_marker ="</O:DAT>",
+    object_end_poh_marker ="</O:POH>",
+    object_end_noh_marker ="</O:NOH>",
+)
+
+MARKERS_TO_KOR = {
+  "PER" : "사람", "ORG" : "단체", "LOC" : "장소", "DAT" : "날짜", "POH" : "수량", "NOH" : "기타"
+}
 
 
 class RE_Dataset(torch.utils.data.Dataset):
@@ -22,13 +54,36 @@ def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
   object_entity = []
+  subject_type = []
+  object_type = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
+    # a = i[1:-1].split(',')[0].split(':')[1].strip().strip("'")
+    # b = j[1:-1].split(',')[0].split(':')[1].strip().strip("'")
+    # c = i[1:-1].split(',')[3].split(':')[1].strip().strip("'")
+    # d = j[1:-1].split(',')[3].split(':')[1].strip().strip("'")
+    subject_entity_dict = ast.literal_eval(i)
+    object_entity_dict = ast.literal_eval(j)
+    a = subject_entity_dict['word']
+    b = object_entity_dict['word']
+    c = subject_entity_dict['type']
+    d = object_entity_dict['type']
 
-    subject_entity.append(i)
-    object_entity.append(j)
-  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
+    
+    subject_entity.append(a)
+    object_entity.append(b)
+    subject_type.append(c)
+    object_type.append(d)
+  out_dataset = pd.DataFrame(
+    {
+    'id':dataset['id'], 
+    'sentence':dataset['sentence'],
+    'subject_entity':subject_entity, 
+    'subject_type': subject_type, 
+    'object_entity':object_entity,
+    'object_type': object_type, 
+    'label':dataset['label'],
+    }
+    )
   return out_dataset
 
 def load_data(dataset_dir):
@@ -41,9 +96,11 @@ def load_data(dataset_dir):
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
-  for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
+  for e01, e02, e03, e04 in zip(dataset['subject_entity'], dataset['object_entity'], dataset['subject_type'], dataset['object_type']):
     temp = ''
-    temp = e01 + '[SEP]' + e02
+    # temp = e01 +' 와 '+ e02 +' 의 관계는 '+ MARKERS_TO_KOR[e03] +' 와 '+ MARKERS_TO_KOR[e04] +'의 관계이다.'
+    temp = f"{e01}와 {e02} 의 관계는 {MARKERS_TO_KOR[e03]}와 {MARKERS_TO_KOR[e04]}의 관계이다."
+
     concat_entity.append(temp)
   tokenized_sentences = tokenizer(
       concat_entity,

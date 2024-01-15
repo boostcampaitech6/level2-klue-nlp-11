@@ -30,6 +30,7 @@ train:
                                       # `epoch`: Evaluate every end of epoch(epoch 종료할 때마다 parameter 평가)
     eval_steps: 500                   # evaluation step(일정 step마다 parameter 평가)
     load_best_model_at_end: True      # 훈련 이후 best model 평가 여부
+    dev_split_ratio: 0.1              # dev set 분할 비율
 
 test:
   Tokenizer_NAME: "klue/bert-base"   # 기본적으로 배포된 inference.py에서는 해당 하이퍼파라미터 대신 MODEL_NAME을 사용하고 있음.

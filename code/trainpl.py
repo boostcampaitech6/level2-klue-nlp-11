@@ -182,5 +182,3 @@ class CustomModelCheckpoint(ModelCheckpoint):
         if self.save_last:
             last_filepath = self._format_checkpoint_name(trainer, pl_module, metrics, "last")
             trainer.save_checkpoint(last_filepath)
-
-

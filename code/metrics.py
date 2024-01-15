@@ -35,19 +35,19 @@ def klue_re_auprc(probs, labels):
         score[c] = sklearn.metrics.auc(recall, precision)
     return np.average(score) * 100.0
 
-# def compute_metrics(pred):
-#     """ validation을 위한 metrics function """
-#     labels = pred.label_ids
-#     preds = pred.predictions.argmax(-1)
-#     probs = pred.predictions
+def compute_metrics(pred):
+    """ validation을 위한 metrics function """
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    probs = pred.predictions
 
-#     # calculate accuracy using sklearn's function
-#     f1 = klue_re_micro_f1(preds, labels)
-#     auprc = klue_re_auprc(probs, labels)
-#     acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
+    # calculate accuracy using sklearn's function
+    f1 = klue_re_micro_f1(preds, labels)
+    auprc = klue_re_auprc(probs, labels)
+    acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
 
-#     return {
-#         'micro f1 score': f1,
-#         'auprc' : auprc,
-#         'accuracy': acc,
-#         }
+    return {
+        'micro f1 score': f1,
+        'auprc' : auprc,
+        'accuracy': acc,
+        }
