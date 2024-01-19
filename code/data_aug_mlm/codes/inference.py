@@ -3,6 +3,7 @@ import torch
 from load_data import get_small_data, get_masked_sentences
 import copy
 import pandas as pd
+from py_hanspell.hanspell import spell_checker      ##
 
 model_dir = '/data/ephemeral/dataset/mlm_aug/mlm_aug_model'
 tokenizer = AutoTokenizer.from_pretrained('klue/roberta-large')
@@ -30,6 +31,13 @@ def decoding(tokenizer, inputs, original_inputs, predict_mask_topk: dict, k: int
     decoded_sentence = tokenizer.decode(new_input_ids, skip_special_tokens=True)
     
     return decoded_sentence
+
+def make_clean_sent(sentence: str):
+    sent = sentence.replace('&',' ')
+    spelled_sent = spell_checker.check(sent)
+    checked_sent = spelled_sent.checked
+
+    return checked_sent
 
 def make_new_row(row, new_sentence: str, sub: str, obj: str, last_df_id: int):
     row2 = row.copy()
@@ -79,6 +87,9 @@ def inference(model, tokenizer, dataset_dir, device):
             new_sentences.add(decoded_sentence)
 
         for new_sent in new_sentences:
+            new_sent = make_clean_sent(new_sent)
+            if new_sent.find(sub) < 0 or new_sent.find(obj) < 0:
+                continue
             new_row = make_new_row(row, new_sent, sub, obj, last_df_id)
             new_data = pd.concat([new_data, pd.DataFrame(new_row)])
             last_df_id += 1
