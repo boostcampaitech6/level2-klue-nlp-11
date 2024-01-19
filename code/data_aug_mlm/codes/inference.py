@@ -3,7 +3,7 @@ import torch
 from load_data import get_small_data, get_masked_sentences
 import copy
 import pandas as pd
-from py_hanspell.hanspell import spell_checker      ##
+from py_hanspell.hanspell import spell_checker      
 
 model_dir = '/data/ephemeral/dataset/mlm_aug/mlm_aug_model'
 tokenizer = AutoTokenizer.from_pretrained('klue/roberta-large')
