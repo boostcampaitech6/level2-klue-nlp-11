@@ -1,22 +1,22 @@
-from datasets import load_dataset
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling
 from transformers import TrainingArguments, Trainer , EarlyStoppingCallback, AutoModelForSequenceClassification, AutoConfig, AutoModelForMaskedLM
 from torch.utils.data import Dataset, DataLoader, RandomSampler
 
 import pytorch_lightning as pl
 import torch
+import pandas as pd
 
 import wandb
+from util.util import *
 
 
-klue_re_dataset_train = load_dataset("klue", "re", split="train")
-klue_re_dataset_val = load_dataset("klue", "re", split="validation")
+train_data = pd.read_csv("../dataset/train/train.csv")
 
-klue_re_dataset_train = klue_re_dataset_train['sentence']
-klue_re_dataset_val= klue_re_dataset_val['sentence']
+train, val = train_dev_split(train_data, 0.2, 42)
 
-train_data = klue_re_dataset_train
-val_data = klue_re_dataset_val
+klue_re_dataset_train = train['sentence'].tolist()
+klue_re_dataset_val = val['sentence'].tolist()
+
 
 class LineByLineTextDataset(Dataset):
     def __init__(self,tokenizer,data,block_size):

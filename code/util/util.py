@@ -127,3 +127,35 @@ class LabelSmoothingLoss(nn.Module):
             true_dist.fill_(self.smoothing / (self.cls - 1))
             true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
         return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+    
+import pandas as pd
+from tqdm.auto import tqdm
+from sklearn.model_selection import train_test_split
+from collections import defaultdict
+
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+from sklearn.model_selection import train_test_split
+
+def train_dev_split(dataset, dev_size: float, random_state: int = 42):
+
+    dev_size = max(dev_size, 0.1)
+
+    label_counts = defaultdict(int)
+
+    for label in dataset['label']:
+        label_counts[label] += 1
+
+    train_data_list = []
+    val_data_list = []
+
+    for label, count in tqdm(label_counts.items(), desc='train_validation_split', total=len(label_counts)):
+        label_data = dataset[dataset['label'] == label]
+        train_data, val_data = train_test_split(label_data, test_size=dev_size, random_state=random_state)
+        train_data_list.append(train_data)
+        val_data_list.append(val_data)
+
+    train_dataset = pd.concat(train_data_list, ignore_index=True).sample(frac=1, random_state=random_state).reset_index(drop=True)
+    val_dataset = pd.concat(val_data_list, ignore_index=True).sample(frac=1, random_state=random_state).reset_index(drop=True)
+
+    return train_dataset, val_dataset
