@@ -26,3 +26,25 @@ code/best_model/.ipynb_checkpoints/*
 ## code/logs - 텐서보드 로그가 담기는 폴더
 code/logs/*
 !code/logs/.gitkeep
+
+code/pretrained/
+code/pretrained_roberta_large/
+code/pretraining_outputs/
+code/pretraining_robertalarge_output/
+code/RL_results/
+code/RL_tapt_best_model_fold0/
+code/Roberta-large_fold0
+code/Roberta-large_fold1
+code/Roberta-large_fold2
+code/Roberta-large_fold3
+code/Roberta-large_fold4
+code/runs/
+code/tapt_best_model/
+code/tapt_results/
+
+code/best_model_fold0
+code/best_model_fold1
+code/best_model_fold2
+code/best_model_fold3
+code/best_model_fold4
+code/best_model_tpe

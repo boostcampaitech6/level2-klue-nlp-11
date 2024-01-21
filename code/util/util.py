@@ -1,58 +1,129 @@
-import pandas as pd
+import wandb
+import sklearn
+import numpy as np
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+import pickle
+import random
+import os
+import torch
+import torch.nn as nn
 
-MARKERS = dict(
-    subject_start_marker="<SUB>",
-    subject_end_marker  ="</SUB>",
-    object_start_marker ="<OBJ>",
-    object_end_marker   ="</OBJ>",
-)
-TYPE_MARKERS = dict(
-    subject_start_per_marker="<S:PER>",
-    subject_start_org_marker="<S:ORG>",
-    subject_end_per_marker ="</S:PER>",
-    subject_end_org_marker ="</S:ORG>",
-    object_start_per_marker="<O:PER>",
-    object_start_org_marker="<O:ORG>",
-    object_start_loc_marker="<O:LOC>",
-    object_start_dat_marker="<O:DAT>",
-    object_start_poh_marker="<O:POH>",
-    object_start_noh_marker="<O:NOH>",
-    object_end_per_marker ="</O:PER>",
-    object_end_org_marker ="</O:ORG>",
-    object_end_loc_marker ="</O:LOC>",
-    object_end_dat_marker ="</O:DAT>",
-    object_end_poh_marker ="</O:POH>",
-    object_end_noh_marker ="</O:NOH>",
-)
 
-def entity_marker(data : pd.Series):
-    sent = data['sentence']
-    sbj = data['subject_word']
-    obj = data['object_word']
-    sent = sent.replace(sbj, MARKERS['subject_start_marker']+' '+sbj+' '+MARKERS['subject_end_marker'])
-    sent = sent.replace(obj, MARKERS['object_start_marker']+' '+obj+' '+MARKERS['object_end_marker'])
-    return sent
-# >>>'〈Something〉는 <OBJ> 조지 해리슨 </OBJ>이 쓰고 <SUB> 비틀즈 </SUB>가 1969년 앨범 《Abbey Road》에 담은 노래다.'
-def typed_entity_marker(data : pd.Series):
-    sent = data['sentence']
-    sbj = data['subject_word']
-    sbj_start_type_mark = TYPE_MARKERS[f"subject_start_{data['subject_type'].lower()}_marker"]
-    sbj_end_type_mark = TYPE_MARKERS[f"subject_end_{data['subject_type'].lower()}_marker"]
-    obj = data['object_word']
-    obj_start_type_mark = TYPE_MARKERS[f"object_start_{data['object_type'].lower()}_marker"]
-    obj_end_type_mark = TYPE_MARKERS[f"object_end_{data['object_type'].lower()}_marker"]
-    sent = sent.replace(sbj, sbj_start_type_mark+' '+sbj+' '+sbj_end_type_mark)
-    sent = sent.replace(obj, obj_start_type_mark+' '+obj+' '+obj_end_type_mark)
-    return sent
-# >>>'〈Something〉는 <O:PER> 조지 해리슨 </O:PER>이 쓰고 <S:ORG> 비틀즈 </S:ORG>가 1969년 앨범 《Abbey Road》에 담은 노래다.'
-def typed_entity_marker_punc(data : pd.Series):
-    sent = data['sentence']
-    sbj = data['subject_word']
-    sbj_type = data['subject_type']
-    obj = data['object_word']
-    obj_type = data['object_type']
-		# Subject와 Object에 붙는 문장부호는 다르다!
-    sent = sent.replace(sbj, '@'+f' * {sbj_type} * '+sbj+' @')
-    sent = sent.replace(obj, '#'+f' * {obj_type} * '+obj+' #')
-    return sent
-# '〈Something〉는 # * PER * 조지 해리슨 #이 쓰고 @ * ORG * 비틀즈 @가 1969년 앨범 《Abbey Road》에 담은 노래다.'
+
+
+label_list = ['no_relation', 'org:top_members/employees', 'org:members', 'org:product', 'per:title', 'org:alternate_names',
+                'per:employee_of', 'org:place_of_headquarters', 'per:product',
+                'org:number_of_employees/members', 'per:children',
+                'per:place_of_residence', 'per:alternate_names',
+                'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
+                'per:spouse', 'org:founded', 'org:political/religious_affiliation',
+                'org:member_of', 'per:parents', 'org:dissolved',
+                'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
+                'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
+                'per:religion']
+  
+def viz(labels, preds, probs):
+    wandb.log({
+            "auprc": wandb.plot.roc_curve(labels, probs, labels=label_list),
+            "precision_recall": wandb.plot.pr_curve(labels, probs, labels=label_list),  
+            "Confusion Matrix": wandb.plot.confusion_matrix(y_true=labels, preds=preds, class_names=label_list)
+        })
+
+def klue_re_micro_f1(preds, labels):
+    no_relation_label_idx = label_list.index("no_relation")
+    label_indices = list(range(len(label_list)))
+    label_indices.remove(no_relation_label_idx)
+    return sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
+
+def klue_re_auprc(probs, labels):
+    labels = np.eye(30)[labels]
+
+    score = np.zeros((30,))
+    for c in range(30):
+        targets_c = labels.take([c], axis=1).ravel()
+        preds_c = probs.take([c], axis=1).ravel()
+        precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
+        score[c] = sklearn.metrics.auc(recall, precision)
+    return np.average(score) * 100.0
+
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    probs = pred.predictions
+    
+    f1 = klue_re_micro_f1(preds, labels)
+    auprc = klue_re_auprc(probs, labels)
+    acc = accuracy_score(labels, preds)
+    
+    viz(labels, preds, probs)
+    
+    return {
+        'micro f1 score': f1,
+        'auprc' : auprc,
+        'accuracy': acc
+    }
+
+def label_to_num(label):
+    num_label = []
+    with open('./dict_label_to_num.pkl', 'rb') as f:
+      dict_label_to_num = pickle.load(f)
+    for v in label:
+      num_label.append(dict_label_to_num[v])
+  
+    return num_label
+
+def num_to_label(label):
+    origin_label = []
+
+    with open('./dict_num_to_label.pkl', 'rb') as f:
+        dict_num_to_label = pickle.load(f)
+    
+    for v in label:
+        origin_label.append(dict_num_to_label[v])
+  
+    return origin_label
+
+
+def add_token(tokenizer, model_type):
+    if model_type == 'entity_special':
+        tokenizer.add_special_tokens({"additional_special_tokens":['[S:PER]', '[/S:PER]', '[O:PER]', '[/O:PER]',
+            '[S:ORG]', '[/S:ORG]', '[O:ORG]', '[/O:ORG]', '[O:POH]', '[/O:POH]',
+            '[O:DAT]', '[/O:DAT]', '[S:LOC]', '[/S:LOC]', '[O:LOC]', '[/O:LOC]', '[O:NOH]', '[/O:NOH]']})
+        
+    elif model_type == 'entity_punct' or model_type == 'new_entity_punct' or model_type == 'ko_entity_punct':
+        tokenizer.add_tokens(['§'])
+
+    elif model_type == 'cls_entity_special':
+        new_special_tokens = {"additional_special_tokens" : ['[SUBJ]' , '[OBJ]' , '[PER]' , '[ORG]',
+            '[DAT]' , '[LOC]' , '[POH]' , '[NOH]']}
+        tokenizer.add_special_tokens(new_special_tokens)
+    
+    return tokenizer
+
+
+
+def seed_everything(seed: int=14):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)  
+    torch.backends.cudnn.deterministic = True 
+    torch.backends.cudnn.benchmark = True
+
+
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, classes=30, smoothing=0.2, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.cls = classes
+        self.dim = dim
+
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))

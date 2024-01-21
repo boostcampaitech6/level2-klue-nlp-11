@@ -6,7 +6,7 @@ import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, EarlyStoppingCallback
-from transformers import BertModel, BertConfig, BertForSequenceClassification, BertForMaskedLM
+from transformers import AutoModelForMaskedLM, AutoModel
 from load_data import *
 from sklearn.model_selection import StratifiedKFold
 # from traindevsplit import * # train_dev_split
@@ -21,6 +21,13 @@ import wandb
 wandb.init(project=config['project_name'], entity='xi-vil')
 run = wandb.init(config=sweep)
 
+
+MARKERS = dict(
+    subject_start_marker="<SUB>",
+    subject_end_marker  ="</SUB>",
+    object_start_marker ="<OBJ>",
+    object_end_marker   ="</OBJ>",
+)
 TYPE_MARKERS = dict(
     subject_start_per_marker="<S:PER>",
     subject_start_org_marker="<S:ORG>",
@@ -41,6 +48,8 @@ TYPE_MARKERS = dict(
     object_end_poh_marker ="</O:POH>",
     object_end_noh_marker ="</O:NOH>",
 )
+
+
 
 def set_seed(seed:int = config['seed']):
     torch.manual_seed(seed)
@@ -113,8 +122,10 @@ def train():
   MODEL_NAME = config['MODEL_NAME']
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
-  new_special_tokens_dict= {'additional_special_tokens': list(TYPE_MARKERS.values())}
-  tokenizer.add_special_tokens(new_special_tokens_dict)
+  new_special_tokens = list(TYPE_MARKERS.values())
+  punt_special_tokens = ["*","@","#"]
+
+  tokenizer.add_special_tokens({'additional_special_tokens': new_special_tokens})
 
   #   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -125,16 +136,13 @@ def train():
   dataset = load_data(config['train']['train_dataset_filepath'])
   labels = label_to_num(dataset['label'].values)
 
-  # train_dataset, dev_dataset = train_dev_split(dataset, config['train']['dev_split_ratio'])
-
-#   train_dataset = load_data(config['train']['train_dataset_filepath'])
-#   dev_dataset = load_data(config['train']['dev_dataset_filepath']) # validation용 데이터는 따로 만드셔야 합니다.
-
-# K-Fold Cross-Validation
+  # K-Fold Cross-Validation
   n_splits = 5  # Number of folds
   skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=config['seed'])
 
   fold_results = []
+
+
 
   for fold, (train_idx, val_idx) in enumerate(skf.split(dataset, labels)):
       print(f"Training fold {fold + 1}/{n_splits}")
@@ -154,45 +162,30 @@ def train():
       RE_train_dataset = RE_Dataset(tokenized_train, train_label)
       RE_val_dataset = RE_Dataset(tokenized_val, val_label)
 
-      # Setting model hyperparameter
-      model_path = './pretrained'
-      model_config = AutoConfig.from_pretrained(f'{model_path}/config.json')
-      model_config.num_labels = 30
+    #   # Setting model hyperparameter
+    #   model_path = './pretrained_roberta_large'
+    #   model_config = AutoConfig.from_pretrained(f'{model_path}/config.json')
+    #   model_config.num_labels = 30
+
+    #   # Load the TAPT model with its configuration
+    #   tapt_model = AutoModelForMaskedLM.from_pretrained(model_path, config=model_config)
+    #   bert_state_dict = {k: v for k, v in tapt_model.state_dict().items() if k.startswith("roberta")}
       
-      tapt_model_path = './pretrained_roberta_large'  # Adjust path as needed
-      tapt_model = AutoModelForSequenceClassification.from_pretrained(tapt_model_path, num_labels=30)
+      model_config =  AutoConfig.from_pretrained("klue/roberta-large")
+      model_config.num_labels = 30
+      # Load the sequence classification model
+      seq_model = AutoModelForSequenceClassification.from_pretrained("klue/roberta-large", config=model_config)
+      seq_model.resize_token_embeddings(len(tokenizer))
 
-      # Load the original pre-trained model for sequence classification
-      original_model = AutoModelForSequenceClassification.from_pretrained("klue/roberta-large", num_labels=30)
-
-      # List of uninitialized weight names in your TAPT model
-      uninitialized_weights = ['classifier.dense.weight', 'classifier.dense.bias', 'classifier.out_proj.bias', 'classifier.out_proj.weight']
-
-      # Copy over the weights for uninitialized parameters from the original model
-      for name, param in tapt_model.named_parameters():
-          if name in uninitialized_weights:
-              # Copy the weight from the original model
-              original_weight = original_model.state_dict()[name]
-              param.data.copy_(original_weight)
-      # Load the TAPT model with its configuration
-              
-      tapt_model.resize_token_embeddings(len(tokenizer))
-
-      # tapt_model = BertForMaskedLM.from_pretrained(model_path, config=model_config)
-      # bert_state_dict = {k: v for k, v in tapt_model.state_dict().items() if k.startswith("roberta")}
-
-      # # Load the sequence classification model
-      # seq_model = BertForSequenceClassification.from_pretrained("klue/roberta-base", config=model_config)
-      # seq_model.resize_token_embeddings(len(tokenizer))
-      # missing_keys, unexpected_keys = seq_model.load_state_dict(bert_state_dict, strict=False)
-
+    #   missing_keys, unexpected_keys = seq_model.load_state_dict(bert_state_dict, strict=False)
+      
 
       # Print the config and parameter details of the sequence classification model
-      print(tapt_model.config)
-      tapt_model.parameters
+      print(seq_model.config)
+      print(seq_model.parameters)
 
       # Ensure 'device' is defined (e.g., device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-      tapt_model.to(device)
+      seq_model.to(device)
 
       #Training setting
       training_args = TrainingArguments(
@@ -219,134 +212,30 @@ def train():
         weight_decay=config['train']['training_args']['weight_decay'],                 # strength of weight decay
 
         fp16=True, # mixed precision training using apex
-        metric_for_best_model= 'micro f1 score'
+        # metric_for_best_model= 'micro_f1_score'
         )
-      
-      early_stopping = EarlyStoppingCallback(
-          early_stopping_patience=3,  # Patience 값 설정 (일정 에폭동안 검증 손실이 개선되지 않으면 중단)
-          early_stopping_threshold=0.001,  # 검증 손실의 개선이 얼마나 작아야 하는지 설정
-      )
-
 
 
       # Train model for the current fold
       trainer = Trainer(
-          model=tapt_model,
+          model=seq_model,
           args=training_args,
           train_dataset=RE_train_dataset,
           eval_dataset=RE_val_dataset,
           compute_metrics=compute_metrics,
-          callbacks = [early_stopping]
-          )
+          callbacks=[EarlyStoppingCallback(early_stopping_patience=3, early_stopping_threshold=0.01)]
+      )
 
       # Train and save results
       trainer.train()
       fold_results.append(trainer.evaluate())
 
       # Optionally, save the model for each fold
-      tapt_model.save_pretrained(f"{config['best_model_dir']}_fold{fold}")
+      seq_model.save_pretrained(f"{config['best_model_dir']}_fold{fold}")
 
   # Aggregate and display results from all folds
   avg_results = {metric: np.mean([result[metric] for result in fold_results]) for metric in fold_results[0]}
   print("Average results across folds:", avg_results)
-
-  # train_label = label_to_num(train_dataset['label'].values)
-  # dev_label = label_to_num(dev_dataset['label'].values)
-
-  # # tokenizing dataset
-  # tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
-
-  # # make dataset for pytorch.
-  # RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-  # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
-
-
-  # # # setting model hyperparameter
-  # model_path = './pretrained'
-
-  # model_config =  AutoConfig.from_pretrained(f'{model_path}/config.json')
-  # model_config.num_labels = 30
-
-  # tapt_model = BertForMaskedLM.from_pretrained(f'{model_path}/pytorch_model.bin')
-  # bert_state_dict = {k: v for k, v in tapt_model.state_dict().items() if k.startswith("bert")}
-  # seq_model = BertForSequenceClassification.from_pretrained("klue/bert-base", config=model_config)
-  # missing_keys, unexpected_keys = seq_model.load_state_dict(bert_state_dict, strict=False)
-
-  # print(seq_model.config)
-  # print(seq_model.parameters)
-  # model.to(device)
-
-
-  # model_path = './pretrained'
-  # model_config = AutoConfig.from_pretrained(f'{model_path}/config.json')
-  # model_config.num_labels = 30
-
-  # # Load the TAPT model with its configuration
-  # tapt_model = BertForMaskedLM.from_pretrained(model_path, config=model_config)
-  # bert_state_dict = {k: v for k, v in tapt_model.state_dict().items() if k.startswith("bert")}
-
-  # # Load the sequence classification model
-  # seq_model = BertForSequenceClassification.from_pretrained("klue/bert-base", config=model_config)
-  # missing_keys, unexpected_keys = seq_model.load_state_dict(bert_state_dict, strict=False)
-
-  # # Print the config and parameter details of the sequence classification model
-  # print(seq_model.config)
-  # print(seq_model.parameters)
-
-  # # Ensure 'device' is defined (e.g., device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-  # seq_model.to(device)
-
-  # 사용한 option 외에도 다양한 option들이 있습니다.
-  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
-  training_args = TrainingArguments(
-    output_dir=config['train']['training_args']['output_dir'],                # output directory
-    run_name=config['train']['training_args']['run_name'],
-    report_to=config['train']['training_args']['report_to'],
-    save_total_limit=config['train']['training_args']['save_total_limit'],    # number of total save model.
-    save_steps=config['train']['training_args']['save_steps'],                # model saving step.
-    logging_dir=config['train']['training_args']['logging_dir'],                  # directory for storing logs
-    logging_steps=config['train']['training_args']['logging_steps'],              # log saving step.
-    evaluation_strategy='steps',  # evaluation strategy to adopt during training
-                                                                                  # `no`: No evaluation during training.
-                                                                                  # `steps`: Evaluate every `eval_steps`.
-                                                                                  # `epoch`: Evaluate every end of epoch.
-    eval_steps = config['train']['training_args']['eval_steps'],                  # evaluation step.
-    save_strategy='steps',       # checkpoint saving strategy to adopt during training
-    load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'],
-
-    learning_rate=config['train']['training_args']['learning_rate'],       # learning_rate
-    num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs
-    per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
-    per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
-    warmup_steps=config['train']['training_args']['warmup_steps'],                # number of warmup steps for learning rate scheduler
-    weight_decay=config['train']['training_args']['weight_decay'],                 # strength of weight decay
-
-    metric_for_best_model= 'micro f1 score',
-
-    fp16=True, # mixed precision training using apex
-    # metric_for_best_model= 'micro_f1_score'
-
-  )
-
-
-  # early_stopping = EarlyStoppingCallback(
-  #     early_stopping_patience=3,  # Patience 값 설정 (일정 에폭동안 검증 손실이 개선되지 않으면 중단)
-  #     early_stopping_threshold=0.01,  # 검증 손실의 개선이 얼마나 작아야 하는지 설정
-  # )
-    
-  # trainer = Trainer(
-  #   model=seq_model,                         # the instantiated 🤗 Transformers model to be trained
-  #   args=training_args,                  # training arguments, defined above
-  #   train_dataset=RE_train_dataset,         # training dataset
-  #   eval_dataset=RE_train_dataset,             # evaluation dataset
-  #   compute_metrics=compute_metrics,
-  #   callbacks = [EarlyStoppingCallback(early_stopping_patience=3, early_stopping_threshold=0.01)]         # define metrics function
-  # )
-
-  # # train model
-  # trainer.train()
-  # seq_model.save_pretrained(config['best_model_dir'])
 
 def main():
   train()
