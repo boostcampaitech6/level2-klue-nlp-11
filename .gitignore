@@ -52,3 +52,10 @@ code/best_model_fold2
 code/best_model_fold3
 code/best_model_fold4
 code/best_model_tpe
+
+examining.ipynb
+sentences.txt
+tokencompare.txt
+tokenized_test.csv
+
+code/legacy
