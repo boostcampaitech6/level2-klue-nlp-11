@@ -14,8 +14,8 @@ train_data = pd.read_csv("../dataset/train/train.csv")
 
 train, val = train_dev_split(train_data, 0.2, 42)
 
-klue_re_dataset_train = train['sentence'].tolist()
-klue_re_dataset_val = val['sentence'].tolist()
+train_data = train['sentence'].tolist()
+val_data = val['sentence'].tolist()
 
 
 class LineByLineTextDataset(Dataset):
