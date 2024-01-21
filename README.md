@@ -10,7 +10,7 @@ Boostcampaitech6
 
 ## Repository Structure
 
-
+```bash
 level2-klue-nlp-11
 ├── code                  
 │   ├── util               
