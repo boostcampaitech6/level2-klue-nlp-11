@@ -103,15 +103,7 @@ def load_test_dataset(dataset_dir, tokenizer):
     test_dataset = load_data(dataset_dir)
     test_label = list(map(int,test_dataset['label'].values))
 
-    # max_len = 256
-
-    # tokenizing dataset
     tokenized_test = tokenized_dataset(test_dataset, tokenizer)
-
-    # test_ent_pos_emb = get_entity_position_embedding(tokenizer, tokenized_test['input_ids'])
-
-    # tokenized_test['entity_ids'] = making_entity_pos_emb(test_ent_pos_emb, max_len)
-
 
     return test_dataset['id'], tokenized_test, test_label
 
@@ -126,20 +118,10 @@ def main(cnt=None):
     tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
     tokenizer = add_token(tokenizer)
     
-    # MODEL_NAME = config['PRETRAINED_MODEL_PATH']
-    # model_config = AutoConfig.from_pretrained(MODEL_NAME)
-
-    # model = CustomModel(Tokenizer_NAME, model_config, tokenizer)
-    # state_dict = torch.load(f'{MODEL_NAME}/pytorch_model.bin')
-    # model.load_state_dict(state_dict)
-    
     test_dataset_dir = config['TEST_PATH']
     test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
     Re_test_dataset = RE_Dataset(test_dataset ,test_label)
     model_paths = config["MODEL_PATHS"]
-
-    # model.to(device)
-    
 
     pred_answer, output_prob = ensemble_inference(model_paths, Re_test_dataset, device)
     pred_answer = num_to_label(pred_answer)

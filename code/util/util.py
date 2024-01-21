@@ -7,6 +7,12 @@ import random
 import os
 import torch
 import torch.nn as nn
+    
+import pandas as pd
+from tqdm.auto import tqdm
+from sklearn.model_selection import train_test_split
+from collections import defaultdict
+from torch.utils.data import TensorDataset, DataLoader
 
 
 
@@ -47,8 +53,6 @@ def compute_metrics(pred):
     f1 = klue_re_micro_f1(preds, labels)
     auprc = klue_re_auprc(probs, labels)
     acc = accuracy_score(labels, preds)
-    
-    viz(labels, preds, probs)
     
     return {
         'micro f1 score': f1,
@@ -99,15 +103,6 @@ class LabelSmoothingLoss(nn.Module):
             true_dist.fill_(self.smoothing / (self.cls - 1))
             true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
         return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
-    
-import pandas as pd
-from tqdm.auto import tqdm
-from sklearn.model_selection import train_test_split
-from collections import defaultdict
-
-import torch
-from torch.utils.data import TensorDataset, DataLoader
-from sklearn.model_selection import train_test_split
 
 def train_dev_split(dataset, dev_size: float, random_state: int = 42):
 
