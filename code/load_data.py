@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from collections import defaultdict
 from transformers import DataCollatorWithPadding
 import copy
+from transformers import DataCollatorForLanguageModeling
 
 sub_type_dict = {'PER': '인물', 'ORG': '단체', 'LOC': '장소'}
 obj_type_dict = {'PER': '인물', 'ORG': '단체', 'POH': '명칭', 'DAT': '날짜', 'LOC': '장소', 'NOH': '수'}
@@ -62,7 +63,7 @@ def preprocessing_dataset(dataset):
 
 
 def load_data(dataset_dir):
-  
+
   dataset_pd = pd.read_csv(dataset_dir)
   dataset = preprocessing_dataset(dataset_pd)
 
@@ -83,3 +84,35 @@ def tokenized_dataset(dataset, tokenizer):
     add_special_tokens=True)
   
   return tokenized_sentences
+
+
+def get_masked_sentences(tokenizer, text: str, sub_word: str, obj_word: str):   # Data Collator를 사용하여 문장 랜덤 마스킹
+
+  inputs = tokenizer(text, return_tensors="pt")
+
+  
+  do_not_mask_words = [sub_word, obj_word, '[CLS]', '[SEP]']
+  protected_tokens = tokenizer(do_not_mask_words, add_special_tokens=False)['input_ids']
+  protected_tokens = [item for sublist in protected_tokens for item in sublist]   # + ending_words_id_list # Flatten the list
+
+  masked_sentences = []   
+  for j in range(10):   # 한 문장에 대하여 랜덤 마스킹 여러 번 수행 (다양한 버전을 얻기 위함)
+    if len(masked_sentences) >= 5:
+      break
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.2)   #, mlm_probability=0.3)   # Data Collator 초기화
+    masked_inputs = data_collator([inputs])   # Data Collator를 사용하여 마스킹 적용
+    
+    # protected_tokens는 마스킹에서 제외
+    for i, input_id in enumerate(inputs['input_ids'][0]):
+      if any([i >= len(masked_inputs['input_ids'][0][0])-4, input_id.item() in protected_tokens]):
+          masked_inputs['input_ids'][0][0][i] = input_id    
+
+    # 디코딩 및 문장 깨끗하게 정리
+    output = tokenizer.decode(masked_inputs['input_ids'][0][0])
+    output = output.replace('[CLS]','').replace('[SEP]','')
+    output = output.strip()
+    if output.find(sub_word) < 0 or output.find(obj_word) < 0:
+      continue
+    masked_sentences.append(output)
+    
+  return masked_sentences
