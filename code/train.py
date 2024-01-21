@@ -20,7 +20,6 @@ with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f
     config = yaml.safe_load(f)
 
 seed = config['SEED']
-seed_everything(seed)
 
 
 def train():
@@ -41,7 +40,7 @@ def train():
 
     tokenizer.add_tokens(['§'])
 
-    dataset = load_data(config['TRAIN_PATH'], config['MODEL_TYPE'], config['DISCRIP'], config['DO_SEQUENTIALBERTMODEL'])
+    dataset = load_data(config['TRAIN_PATH'])
     train_dataset, dev_dataset = train_dev_split(dataset, config['RATIO'])
 
     train_label = label_to_num(train_dataset['label'].values)
@@ -53,7 +52,7 @@ def train():
     RE_train_dataset = RE_Dataset(tokenized_train, train_label)
     RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
-    model = SpecialPunctBERT(MODEL_NAME, config=model_config, tokenizer=tokenizer)
+    model = CustomModel(MODEL_NAME, config=model_config, tokenizer=tokenizer)
 
     data_collator = DataCollatorWithPadding(tokenizer)
 
@@ -81,7 +80,6 @@ def train():
         metric_for_best_model='micro f1 score')
 
     trainer = CustomTrainer(
-        loss_fn=config['LOSS_FN'],
         model=model,
         args=training_args,
         train_dataset=RE_train_dataset,
@@ -110,14 +108,14 @@ def kfoldtrain():
 
     tokenizer = AutoTokenizer.from_pretrained(config['MODEL_NAME'])
     tokenizer.add_tokens(['§'])
-    model_config = AutoConfig.from_pretrained(config['PRETRAINED_MODEL_PATH'])
+    model_config = AutoConfig.from_pretrained(pretrained_model_path)
     model_config.num_labels = 30 
 
-    dataset = load_data(config['TRAIN_PATH'], config['MODEL_TYPE'], discrip=1)
+    dataset = load_data(config['TRAIN_PATH'])
     labels = label_to_num(dataset['label'].values)
 
     n_splits = 5
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=config['SEED'])
 
     data_collator = DataCollatorWithPadding(tokenizer)
 
@@ -139,7 +137,7 @@ def kfoldtrain():
         RE_train_dataset = RE_Dataset(tokenized_train, train_label)
         RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
-        model = SpecialPunctBERT(MODEL_NAME, config=model_config, tokenizer=tokenizer)
+        model = CustomModel(MODEL_NAME, config=model_config, tokenizer=tokenizer)
         model.to(device)
 
         training_args = TrainingArguments(
@@ -163,7 +161,6 @@ def kfoldtrain():
             metric_for_best_model='micro f1 score')
         
         trainer = CustomTrainer(
-            loss_fn=config['LOSS_FN'],
             model=model,
             args=training_args,
             train_dataset=RE_train_dataset,
@@ -184,7 +181,7 @@ def kfoldtrain():
     print("Average results across folds:", avg_results)
 
 if __name__ == '__main__':
-    seed_everything()
+    seed_everything(seed)
   
     with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
         config = yaml.safe_load(f)

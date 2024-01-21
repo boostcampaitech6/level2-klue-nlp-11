@@ -27,18 +27,8 @@ class RE_Dataset(torch.utils.data.Dataset):
   def __len__(self):
     return len(self.labels)
   
-def add_discription_mod(sentence, sub_word, obj_word, sub_type, obj_type, do_discrip=0):
-    if do_discrip == 1:
-        description = f"다음 문장에서{obj_word}는{sub_word}의{obj_type}이다."
-    elif do_discrip == 2:
-        description = f" 이 문장에서 {sub_word}는 {sub_type}이고 {obj_word}는 {obj_type}이다."
-    else:
-        return sentence  
 
-    return f"{sentence}:{description}"
-
-
-def preprocessing_dataset(dataset, discrip):
+def preprocessing_dataset(dataset):
     sentences = []
     ids = dataset['id']
     labels = dataset['label']
@@ -62,7 +52,7 @@ def preprocessing_dataset(dataset, discrip):
                      sub_marker, sentence[sub_idx[1] + 1:]]
 
         sentence = ''.join(parts)
-        sentence = add_query(sentence, sub_word, obj_word, f" '{obj_type}'", f" '{obj_type}'", discrip)
+        sentence = add_query(sentence, sub_word, obj_word, f" '{obj_type}'", f" '{obj_type}'")
 
         sentences.append(sentence)
 
@@ -71,20 +61,17 @@ def preprocessing_dataset(dataset, discrip):
     return out_dataset
 
 
-def load_data(dataset_dir, model_type, discrip):
-  pd_dataset = pd.read_csv(dataset_dir)
-  dataset = preprocessing_dataset(pd_dataset, discrip)
+def load_data(dataset_dir):
+  
+  dataset_pd = pd.read_csv(dataset_dir)
+  dataset = preprocessing_dataset(dataset_pd)
 
   return dataset
 
+def add_query(sentence, sub_word, obj_word, sub_type, obj_type):
+    query = f"{obj_word}는{sub_word}의{obj_type}이다."
 
-def add_query(sentence, sub_word, obj_word, sub_type, obj_type, discrip=0):
-    if discrip == 1:
-        description = f"{obj_word}는{sub_word}의{obj_type}이다."
-    else:
-        return sentence  
-
-    return f"{sentence}:{description}"
+    return f"{sentence}:{query}"
 
 def tokenized_dataset(dataset, tokenizer):
   tokenized_sentences = tokenizer(

@@ -22,13 +22,6 @@ label_list = ['no_relation', 'org:top_members/employees', 'org:members', 'org:pr
                 'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
                 'per:religion']
   
-def viz(labels, preds, probs):
-    wandb.log({
-            "auprc": wandb.plot.roc_curve(labels, probs, labels=label_list),
-            "precision_recall": wandb.plot.pr_curve(labels, probs, labels=label_list),  
-            "Confusion Matrix": wandb.plot.confusion_matrix(y_true=labels, preds=preds, class_names=label_list)
-        })
-
 def klue_re_micro_f1(preds, labels):
     no_relation_label_idx = label_list.index("no_relation")
     label_indices = list(range(len(label_list)))
@@ -84,32 +77,11 @@ def num_to_label(label):
     return origin_label
 
 
-def add_token(tokenizer, model_type):
-    if model_type == 'entity_special':
-        tokenizer.add_special_tokens({"additional_special_tokens":['[S:PER]', '[/S:PER]', '[O:PER]', '[/O:PER]',
-            '[S:ORG]', '[/S:ORG]', '[O:ORG]', '[/O:ORG]', '[O:POH]', '[/O:POH]',
-            '[O:DAT]', '[/O:DAT]', '[S:LOC]', '[/S:LOC]', '[O:LOC]', '[/O:LOC]', '[O:NOH]', '[/O:NOH]']})
-        
-    elif model_type == 'entity_punct' or model_type == 'new_entity_punct' or model_type == 'ko_entity_punct':
-        tokenizer.add_tokens(['§'])
+def add_token(tokenizer):
+    tokenizer.add_tokens(['§'])
 
-    elif model_type == 'cls_entity_special':
-        new_special_tokens = {"additional_special_tokens" : ['[SUBJ]' , '[OBJ]' , '[PER]' , '[ORG]',
-            '[DAT]' , '[LOC]' , '[POH]' , '[NOH]']}
-        tokenizer.add_special_tokens(new_special_tokens)
-    
     return tokenizer
 
-
-
-def seed_everything(seed: int=14):
-    random.seed(seed)
-    np.random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)  
-    torch.backends.cudnn.deterministic = True 
-    torch.backends.cudnn.benchmark = True
 
 
 class LabelSmoothingLoss(nn.Module):

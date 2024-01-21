@@ -2,12 +2,12 @@ PROJECT_NAME: "KLUE-Byungryool Jo"
 SEED: 42
 
 # PATH
-BEST_MODEL_DIR: './Roberta-large'
+Roberta-large_DIR: './Roberta-large'
 TRAIN_PATH: "../dataset/train/train.csv"
 TEST_PATH: "../dataset/test/test_data.csv"
 OUTPUT_DIR: "./results"
 LOGGING_DIR: "./logs"
-MODEL_SAVE_DIR: "./best_model_tpe"
+MODEL_SAVE_DIR: "./RL_tapt_best_model"
 
 # MODEL
 MODEL_NAME: "klue/roberta-large"
@@ -22,7 +22,6 @@ WARMUP_STEP: 800
 WEIGHT_DECAY: 0.2
 TEST_SIZE: 0.2
 
-
 # LOG
 SAVING_STEP: 800
 LOGGING_STEP: 800
@@ -30,8 +29,14 @@ EVAL_STEP: 800
 STRATEGY: "steps" ### 추가부분
 REPORT_TO: "wandb"
 RUN_NAME: "roberta-large_TPE"
-LOAD_BEST_MODEL_AT_END: True
+LOAD_Roberta-large_AT_END: True
 
-LOSS_FN : "CrossEntropyLoss"
+#INFERENCE
 
-MODEL_TYPE : "SpecialEntityBERT"
+INFERENCE_OUTPUT_PATH: './prediction/roberta-large_tpe.csv'
+MODEL_PATHS:
+  - './best_model_fold0'
+  - './best_model_fold1'
+  - './best_model_fold2'
+  - './best_model_fold3'
+  - './best_model_fold4'
