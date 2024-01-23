@@ -1,108 +1,139 @@
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from torch.utils.data import DataLoader
-from load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
-
 import pickle as pickle
 import numpy as np
-import argparse
 from tqdm import tqdm
-
-from train import set_seed
-
 import yaml
-config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
+from pytorch_lightning import seed_everything
+
+from load_data import *
+from model import *
+from util.util import *
+
+def ensemble_inference(model_paths, tokenized_sent, device):
+    dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
+
+    with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+        config = yaml.safe_load(f)
+    
+    # Initialize variables to store predictions and probabilities
+    final_output_pred = []
+    final_output_prob = []
+    
+    Tokenizer_NAME = config['MODEL_NAME']
+    # tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+    # tokenizer = add_token(tokenizer)
+
+
+    for model_path in model_paths:
+        
+        model_config = AutoConfig.from_pretrained(model_path)
+        model_config.num_labels = 30
+
+        Tokenizer_NAME = config['MODEL_NAME']
+        tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+        tokenizer = add_token(tokenizer)
+
+        model = CustomModel(Tokenizer_NAME, model_config, tokenizer)
+        state_dict = torch.load(f'{model_path}/pytorch_model.bin')
+        model.load_state_dict(state_dict)
+
+        model.to(device)
+        model.eval()
+        output_pred = []
+        output_prob = []
+        
+        for data in tqdm(dataloader):
+            with torch.no_grad():
+                outputs = model(
+                input_ids=data['input_ids'].to(device),
+                attention_mask=data['attention_mask'].to(device),
+                token_type_ids=data['token_type_ids'].to(device),)
+                
+
+            logits = outputs['logits']
+        
+            prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
+            logits = logits.detach().cpu().numpy()
+            result = np.argmax(logits, axis=-1)
+
+            output_pred.append(result)
+            output_prob.append(prob)
+        
+        final_output_pred.append(np.concatenate(output_pred))
+        final_output_prob.append(np.concatenate(output_prob, axis=0))
+    
+    final_output_prob = np.array(final_output_prob)
+    
+    avg_probs = np.mean(final_output_prob, axis=0)
+    
+    final_predictions = np.argmax(avg_probs, axis=-1)
+    
+    return final_predictions.tolist(), avg_probs.tolist()
+
 
 def inference(model, tokenized_sent, device):
-  """
-    test dataset을 DataLoader로 만들어 준 후,
-    batch_size로 나눠 model이 예측 합니다.
-  """
-  dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
-  model.eval()
-  output_pred = []
-  output_prob = []
-  for i, data in enumerate(tqdm(dataloader)):
-    with torch.no_grad():
-      outputs = model(
-          input_ids=data['input_ids'].to(device),
-          attention_mask=data['attention_mask'].to(device),
-          token_type_ids=data['token_type_ids'].to(device)
-          )
-    logits = outputs[0]
-    prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
-    logits = logits.detach().cpu().numpy()
-    result = np.argmax(logits, axis=-1)
+    dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
+    model.eval()
+    output_pred = []
+    output_prob = []
+    for data in tqdm(dataloader):
+        with torch.no_grad():
+            outputs = model(
+            input_ids=data['input_ids'].to(device),
+            attention_mask=data['attention_mask'].to(device),
+            token_type_ids=data['token_type_ids'].to(device))
+                
+        logits = outputs['logits']
+        
+        prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
+        logits = logits.detach().cpu().numpy()
+        result = np.argmax(logits, axis=-1)
 
-    output_pred.append(result)
-    output_prob.append(prob)
-  
-  return np.concatenate(output_pred).tolist(), np.concatenate(output_prob, axis=0).tolist()
+        output_pred.append(result)
+        output_prob.append(prob)
 
-def num_to_label(label):
-  """
-    숫자로 되어 있던 class를 원본 문자열 라벨로 변환 합니다.
-  """
-  origin_label = []
-  with open('dict_num_to_label.pkl', 'rb') as f:
-    dict_num_to_label = pickle.load(f)
-  for v in label:
-    origin_label.append(dict_num_to_label[v])
-  
-  return origin_label
+    return np.concatenate(output_pred).tolist(), np.concatenate(output_prob, axis=0).tolist()
 
 def load_test_dataset(dataset_dir, tokenizer):
-  """
-    test dataset을 불러온 후,
-    tokenizing 합니다.
-  """
-  test_dataset = load_data(dataset_dir)
-  test_label = list(map(int,test_dataset['label'].values))
-  # tokenizing dataset
-  tokenized_test = tokenized_dataset(test_dataset, tokenizer)
-  return test_dataset['id'], tokenized_test, test_label
 
-def main(args):
-  set_seed(config['seed'])
-  """
-    주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
-  """
-  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-  # load tokenizer
-  Tokenizer_NAME = config['MODEL_NAME']
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+    test_dataset = load_data(dataset_dir)
+    test_label = list(map(int,test_dataset['label'].values))
 
-  ## load my model
-  MODEL_NAME = args.model_dir # model dir.
-  model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
-  model.parameters
-  model.to(device)
+    tokenized_test = tokenized_dataset(test_dataset, tokenizer)
 
-  ## load test datset
-  test_dataset_dir = config['test']['test_dataset_filepath']
-  test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
-  Re_test_dataset = RE_Dataset(test_dataset ,test_label)
+    return test_dataset['id'], tokenized_test, test_label
 
-  ## predict answer
-  pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
-  pred_answer = num_to_label(pred_answer) # 숫자로 된 class를 원래 문자열 라벨로 변환.
+
+def main(cnt=None):
+    with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+        config = yaml.safe_load(f)
+        
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
+    Tokenizer_NAME = config['MODEL_NAME']
+    tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+    tokenizer = add_token(tokenizer)
+    
+    test_dataset_dir = config['TEST_PATH']
+    test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
+    Re_test_dataset = RE_Dataset(test_dataset ,test_label)
+    model_paths = config["MODEL_PATHS"]
+
+    pred_answer, output_prob = ensemble_inference(model_paths, Re_test_dataset, device)
+    pred_answer = num_to_label(pred_answer)
   
-  ## make csv file with predicted answer
-  #########################################################
-  # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
-  output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
+    output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
+    output.to_csv(config['INFERENCE_OUTPUT_PATH'], index=False)
+  
+    print('---- Finish! ----')
 
-  output.to_csv(config['test']['predict_submission_filepath'], index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
-  #### 필수!! ##############################################
-  print('---- Finish! ----')
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-  
-  # model dir
-  parser.add_argument('--model_dir', type=str, default=config['best_model_dir'])
-  args = parser.parse_args()
-  print(args)
-  main(args)
-  
+    with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+        config = yaml.safe_load(f)
+
+    seed_everything(config['SEED'])
+    main()

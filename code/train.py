@@ -1,159 +1,189 @@
 import pickle as pickle
-import os
 import pandas as pd
 import torch
-import sklearn
 import numpy as np
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
-from load_data import *
-import numpy as np
-import random
-
-import yaml
-config = yaml.load(open('./config.yaml', 'r'), Loader = yaml.Loader)
-sweep = yaml.load(open('./sweep.yaml', 'r'), Loader = yaml.Loader)
-
+from transformers import DataCollatorWithPadding, AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, EarlyStoppingCallback
+from sklearn.model_selection import StratifiedKFold
 import wandb
-wandb.init(project=config['project_name'], entity='xi-vil')
-run = wandb.init(config=sweep)
+import yaml
+import os
+import random
+from pytorch_lightning import seed_everything
 
-def set_seed(seed:int = config['seed']):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
 
-def klue_re_micro_f1(preds, labels):
-    """KLUE-RE micro f1 (except no_relation)"""
-    label_list = ['no_relation', 'org:top_members/employees', 'org:members',
-       'org:product', 'per:title', 'org:alternate_names',
-       'per:employee_of', 'org:place_of_headquarters', 'per:product',
-       'org:number_of_employees/members', 'per:children',
-       'per:place_of_residence', 'per:alternate_names',
-       'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
-       'per:spouse', 'org:founded', 'org:political/religious_affiliation',
-       'org:member_of', 'per:parents', 'org:dissolved',
-       'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
-       'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
-       'per:religion']
-    no_relation_label_idx = label_list.index("no_relation")
-    label_indices = list(range(len(label_list)))
-    label_indices.remove(no_relation_label_idx)
-    return sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
+from trainer import *
+from model import *
+from util.util import *
+from load_data import *
 
-def klue_re_auprc(probs, labels):
-    """KLUE-RE AUPRC (with no_relation)"""
-    labels = np.eye(30)[labels]
+with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+    config = yaml.safe_load(f)
 
-    score = np.zeros((30,))
-    for c in range(30):
-        targets_c = labels.take([c], axis=1).ravel()
-        preds_c = probs.take([c], axis=1).ravel()
-        precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
-        score[c] = sklearn.metrics.auc(recall, precision)
-    return np.average(score) * 100.0
+seed = config['SEED']
 
-def compute_metrics(pred):
-  """ validation을 위한 metrics function """
-  labels = pred.label_ids
-  preds = pred.predictions.argmax(-1)
-  probs = pred.predictions
-
-  # calculate accuracy using sklearn's function
-  f1 = klue_re_micro_f1(preds, labels)
-  auprc = klue_re_auprc(probs, labels)
-  acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
-
-  return {
-      'micro f1 score': f1,
-      'auprc' : auprc,
-      'accuracy': acc,
-  }
-
-def label_to_num(label):
-  num_label = []
-  with open('dict_label_to_num.pkl', 'rb') as f:
-    dict_label_to_num = pickle.load(f)
-  for v in label:
-    num_label.append(dict_label_to_num[v])
-  
-  return num_label
 
 def train():
-  set_seed(42)
-  # load model and tokenizer
-  MODEL_NAME = config['MODEL_NAME']
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+        config = yaml.safe_load(f)
 
-  # load dataset
-  train_dataset = load_data(config['train']['train_dataset_filepath'])
-  # dev_dataset = load_data(config['train']['dev_dataset_filepath']) # validation용 데이터는 따로 만드셔야 합니다.
-
-  train_label = label_to_num(train_dataset['label'].values)
-  # dev_label = label_to_num(dev_dataset['label'].values)
-
-  # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
-
-  # make dataset for pytorch.
-  RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-  # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
-
-  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-  print(device)
-  # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = 30
-
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  print(model.config)
-  model.parameters
-  model.to(device)
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   
-  # 사용한 option 외에도 다양한 option들이 있습니다.
-  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
-  training_args = TrainingArguments(
-    output_dir=config['train']['training_args']['output_dir'],                # output directory
-    run_name=config['train']['training_args']['run_name'],
-    report_to=config['train']['training_args']['report_to'],
-    save_total_limit=config['train']['training_args']['save_total_limit'],    # number of total save model.
-    save_steps=config['train']['training_args']['save_steps'],                # model saving step.
-    logging_dir=config['train']['training_args']['logging_dir'],                  # directory for storing logs
-    logging_steps=config['train']['training_args']['logging_steps'],              # log saving step.
-    evaluation_strategy=config['train']['training_args']['evaluation_strategy'],  # evaluation strategy to adopt during training
-                                                                                  # `no`: No evaluation during training.
-                                                                                  # `steps`: Evaluate every `eval_steps`.
-                                                                                  # `epoch`: Evaluate every end of epoch.
-    eval_steps = config['train']['training_args']['eval_steps'],                  # evaluation step.
-    load_best_model_at_end = config['train']['training_args']['load_best_model_at_end'],
+    MODEL_NAME = config['MODEL_NAME']
 
-    learning_rate=config['train']['training_args']['learning_rate'],       # learning_rate
-    num_train_epochs=config['train']['training_args']['num_train_epochs'],    # total number of training epochs
-    per_device_train_batch_size=config['train']['training_args']['per_device_train_batch_size'],  # batch size per device during training
-    per_device_eval_batch_size=config['train']['training_args']['per_device_eval_batch_size'],    # batch size for evaluation
-    warmup_steps=config['train']['training_args']['warmup_steps'],                # number of warmup steps for learning rate scheduler
-    weight_decay=config['train']['training_args']['weight_decay']                 # strength of weight decay
+    pretrained_model_path = config['PRETRAINED_MODEL_PATH']
 
-  )
-  trainer = Trainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
-    args=training_args,                  # training arguments, defined above
-    train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_train_dataset,             # evaluation dataset
-    compute_metrics=compute_metrics         # define metrics function
-  )
+    model_config = AutoConfig.from_pretrained(pretrained_model_path)
+    model_config.num_labels = 30  # Set the number of labels if it's a classification task
 
-  # train model
-  trainer.train()
-  model.save_pretrained(config['best_model_dir'])
-def main():
-  train()
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_path, config=model_config)
+
+    tokenizer.add_tokens(['§'])
+
+    dataset = load_data(config['TRAIN_PATH'])
+    train_dataset, dev_dataset = train_dev_split(dataset, config['RATIO'])
+
+    train_label = label_to_num(train_dataset['label'].values)
+    dev_label = label_to_num(dev_dataset['label'].values)
+
+    tokenized_train =  tokenized_dataset(train_dataset, tokenizer)
+    tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+
+    RE_train_dataset = RE_Dataset(tokenized_train, train_label)
+    RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+
+    model = CustomModel(MODEL_NAME, config=model_config, tokenizer=tokenizer)
+
+    data_collator = DataCollatorWithPadding(tokenizer)
+
+    model.to(device)
+
+    wandb.init(project=config['PROJECT_NAME'], name=config['RUN_NAME'])
+    training_args = TrainingArguments(
+        output_dir=config['OUTPUT_DIR'],
+        save_total_limit=config['TOTAL_SAVE_MODEL'],
+        save_steps=config['SAVING_STEP'],
+        num_train_epochs=config['MAX_EPOCH'],
+        learning_rate=config['LR'],
+        per_device_train_batch_size=config['BATCH_SIZE'],
+        per_device_eval_batch_size=config['BATCH_SIZE'],
+        warmup_steps=config['WARMUP_STEP'],
+        weight_decay=config['WEIGHT_DECAY'],
+        logging_dir=config['LOGGING_DIR'],
+        logging_steps=config['LOGGING_STEP'],
+        logging_strategy=config['STRATEGY'],
+        save_strategy=config['STRATEGY'],
+        evaluation_strategy=config['STRATEGY'],
+        eval_steps=config['EVAL_STEP'],
+        load_best_model_at_end=True,
+        report_to="wandb",
+        metric_for_best_model='micro f1 score')
+
+    trainer = CustomTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=RE_train_dataset,
+        eval_dataset=RE_dev_dataset,
+        compute_metrics=compute_metrics,
+        data_collator=data_collator)
+
+    trainer.train()
+    model.save_pretrained(config['MODEL_SAVE_DIR'])
+    wandb.finish()
+
+
+
+def kfoldtrain():
+
+    with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+        config = yaml.safe_load(f)
+
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
+    os.makedirs(config['MODEL_SAVE_DIR'], exist_ok=True)
+
+    MODEL_NAME = config['MODEL_NAME']
+
+    pretrained_model_path = config['PRETRAINED_MODEL_PATH']
+
+    tokenizer = AutoTokenizer.from_pretrained(config['MODEL_NAME'])
+    tokenizer.add_tokens(['§'])
+    model_config = AutoConfig.from_pretrained(pretrained_model_path)
+    model_config.num_labels = 30 
+
+    dataset = load_data(config['TRAIN_PATH'])
+    labels = label_to_num(dataset['label'].values)
+
+    n_splits = 5
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=config['SEED'])
+
+    data_collator = DataCollatorWithPadding(tokenizer)
+
+    fold_results = []
+
+    for fold, (train_idx, dev_idx) in enumerate(skf.split(np.zeros(len(labels)), labels)):
+        print(f"FOLD {fold}")
+        print("TRAIN:", train_idx, "TEST:", dev_idx)
+        
+        wandb.init(project=config['PROJECT_NAME'], name=f"{config['RUN_NAME']}_fold{fold}", reinit=True)
+        
+        train_dataset = dataset.iloc[train_idx]
+        dev_dataset = dataset.iloc[dev_idx]
+
+        train_label = label_to_num(train_dataset['label'].values)
+        dev_label = label_to_num(dev_dataset['label'].values)
+        tokenized_train = tokenized_dataset(train_dataset, tokenizer)
+        tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+        RE_train_dataset = RE_Dataset(tokenized_train, train_label)
+        RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+
+        model = CustomModel(MODEL_NAME, config=model_config, tokenizer=tokenizer)
+        model.to(device)
+
+        training_args = TrainingArguments(
+            output_dir=config['OUTPUT_DIR'],
+            save_total_limit=config['SAVE_MODEL_NUM'],
+            save_steps=config['SAVING_STEP'],
+            num_train_epochs=config['MAX_EPOCH'],
+            learning_rate=config['LR'],
+            per_device_train_batch_size=config['BATCH_SIZE'],
+            per_device_eval_batch_size=config['BATCH_SIZE'],
+            warmup_steps=config['WARMUP_STEP'],
+            weight_decay=config['WEIGHT_DECAY'],
+            logging_dir=config['LOGGING_DIR'],
+            logging_steps=config['LOGGING_STEP'],
+            logging_strategy=config['STRATEGY'],
+            save_strategy=config['STRATEGY'],
+            evaluation_strategy=config['STRATEGY'],
+            eval_steps=config['EVAL_STEP'],
+            load_best_model_at_end=True,
+            report_to="wandb",
+            metric_for_best_model='micro f1 score')
+        
+        trainer = CustomTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=RE_train_dataset,
+            eval_dataset=RE_dev_dataset,
+            compute_metrics=compute_metrics,
+            data_collator=data_collator)
+        
+        try:
+            trainer.train()
+            fold_results.append(trainer.evaluate())
+            model.save_pretrained(f"{config['MODEL_SAVE_DIR']}_fold{fold}")
+        except Exception as e:
+            print(f"Error occurred in fold {fold}: {e}")
+
+        wandb.finish()
+
+    avg_results = {metric: np.mean([result[metric] for result in fold_results]) for metric in fold_results[0]}
+    print("Average results across folds:", avg_results)
 
 if __name__ == '__main__':
-  main()
+    seed_everything(seed)
+  
+    with open('/data/ephemeral/lost+found/level2-klue-nlp-11/code/config.yaml') as f:
+        config = yaml.safe_load(f)
+    
+    kfoldtrain()
